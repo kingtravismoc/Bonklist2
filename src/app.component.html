@@ -1,0 +1,236 @@
+<!-- Self Destruct View -->
+@if (orchestrator.isSelfDestructed()) {
+  <div class="flex flex-col items-center justify-center min-h-screen bg-black text-center p-8 animate-pulse-border border-4 border-red-900">
+    <app-icon name="Download" [size]="80" color="#ff3b3b" />
+    <h1 class="text-4xl font-bold text-[#ff3b3b] mt-6 tracking-widest">TERMINAL CONSEQUENCE</h1>
+    <p class="mt-4 text-xl text-gray-400 max-w-2xl">
+      Malicious code detected. The core script has been irreversibly destroyed, and this client has been permanently banned from the network.
+    </p>
+    <button 
+      (click)="orchestrator.reinitialize()" 
+      class="mt-8 px-8 py-3 rounded-full font-bold bg-green-700 text-white hover:bg-green-600 transition flex items-center gap-2"
+    >
+      <app-icon name="RefreshCcw" [size]="18" /> Re-initialize System
+    </button>
+  </div>
+} @else {
+
+  <!-- Main App Container -->
+  <div class="min-h-screen flex flex-col p-4 max-w-[1600px] mx-auto">
+    
+    <!-- Header -->
+    <header class="flex items-center gap-3 py-4 border-b border-[#30363d] mb-4">
+      <app-icon name="Shield" color="#00ffdd" [size]="32" />
+      <h1 class="text-2xl font-bold text-[#00ffdd] flex-grow">
+        Bonklist2: <span class="text-white font-normal">{{ view() === 'dashboard' ? 'Active Threat Defense' : 'Public Ledger' }}</span>
+      </h1>
+      
+      <button 
+        class="bg-[#161b22] border border-[#30363d] text-[#e6edf3] px-4 py-2 rounded flex items-center gap-2 hover:bg-[#1f2937] transition"
+        (click)="view.set(view() === 'dashboard' ? 'eepsite' : 'dashboard')"
+      >
+        <app-icon name="Eye" [size]="16" />
+        {{ view() === 'dashboard' ? 'View Eepsite' : 'View Dashboard' }}
+      </button>
+
+      @if (view() === 'dashboard') {
+        <button 
+          (click)="orchestrator.reinitialize()" 
+          class="bg-[#161b22] border border-[#30363d] text-gray-400 px-3 py-2 rounded hover:bg-red-900/20 hover:text-red-400 transition"
+        >
+          <app-icon name="RefreshCcw" [size]="16" />
+        </button>
+      }
+    </header>
+
+    <!-- VIEW: DASHBOARD -->
+    @if (view() === 'dashboard') {
+      <div class="grid grid-cols-1 lg:grid-cols-4 gap-4 flex-grow">
+        
+        <!-- Column 1: Stream -->
+        <div class="lg:col-span-1 h-[600px] lg:h-auto">
+          <app-incoming-stream 
+            [requests]="orchestrator.requests()" 
+            (select)="handleRequestSelect($event)" 
+          />
+        </div>
+
+        <!-- Column 2: Analysis & Traceback -->
+        <div class="lg:col-span-1 flex flex-col gap-4 h-[600px] lg:h-auto">
+          <div class="flex-shrink-0 h-1/2">
+            <app-threat-analysis [threat]="selectedThreat()" />
+          </div>
+          <div class="bg-[#161b22] border border-[#30363d] rounded-xl p-6 flex flex-col shadow-md h-1/2">
+             <h3 class="text-lg font-semibold mb-2 text-[#00e0b3]">Geolocation Traceback</h3>
+             <div class="flex-grow flex flex-col items-center justify-center text-center border border-dashed border-[#30363d] rounded bg-[#0d1117] text-gray-500 p-4">
+               <app-icon name="Globe" [size]="40" className="mb-2 opacity-50" />
+               @if (selectedThreat()) {
+                 <p class="text-white">{{ selectedThreat()?.ip }}</p>
+                 <p class="text-xs">Lat: {{ (50 + (10 * 0.5)).toFixed(4) }} | Lon: {{ (-0.1 + (10 * 0.5)).toFixed(4) }}</p>
+               } @else {
+                 <p>No Threat Selected</p>
+               }
+             </div>
+          </div>
+        </div>
+
+        <!-- Column 3: Policy & Actions -->
+        <div class="lg:col-span-1 flex flex-col gap-4 h-[600px] lg:h-auto">
+           <app-policy-judging 
+             [items]="orchestrator.quarantineList()"
+             [userUID]="orchestrator.userUID()"
+             (confirm)="handleQuarantineConfirm($event)"
+             (deny)="handleQuarantineDeny($event)"
+             (runIntegrityCheck)="handleIntegrityCheck()"
+           />
+           <div class="flex justify-center">
+              <button (click)="orchestrator.triggerSelfDestruct()" class="text-[#ff3b3b] text-sm font-bold hover:underline">
+                 Delete Application from Account
+              </button>
+           </div>
+        </div>
+
+        <!-- Column 4: Forensics -->
+        <div class="lg:col-span-1 flex flex-col gap-4 h-[600px] lg:h-auto">
+          <app-signal-probe (entryGenerated)="handleNewBonkEntry($event)" />
+          
+          <div class="bg-[#161b22] border border-[#30363d] rounded-xl p-4 flex flex-col shadow-md max-h-[200px] overflow-hidden">
+            <h3 class="text-sm font-semibold mb-2 text-[#ffa657] flex items-center gap-2">
+              <app-icon name="Layers" [size]="14" /> Bonklist Log
+            </h3>
+            <ul class="overflow-y-auto custom-scrollbar text-xs font-mono">
+              @for (entry of orchestrator.bonklist(); track entry.deviceId) {
+                <li 
+                  class="py-2 border-b border-[#30363d] cursor-pointer hover:bg-[#1f2937] flex items-center justify-between px-2"
+                  (click)="selectedBonklistEntry.set(entry)"
+                >
+                  <span class="text-gray-400">{{ entry.timestamp | date:'shortTime' }}</span>
+                  <span class="text-white">{{ entry.deviceId.substring(0,8) }}...</span>
+                  <span class="w-2 h-2 rounded-full" [class]="entry.filterStatus === 'bypassed' ? 'bg-red-500' : 'bg-green-500'"></span>
+                </li>
+              }
+            </ul>
+          </div>
+
+          <app-viewer-3d [entry]="selectedBonklistEntry()" />
+        </div>
+
+        <!-- Orchestrator Logs (Bottom) -->
+        <div class="lg:col-span-4 bg-[#0d1117] border-t border-[#30363d] h-32 overflow-y-auto p-2 font-mono text-xs text-gray-400">
+           @for (log of orchestrator.logs(); track $index) {
+             <div class="py-0.5 border-b border-white/5">{{ log }}</div>
+           }
+        </div>
+
+      </div>
+
+    } @else {
+      
+      <!-- VIEW: EEPSITE (Public Ledger) -->
+      <div class="flex-grow bg-[#0c0c0c] text-[#ccc] font-mono relative p-8 border border-[#444] rounded-lg shadow-2xl">
+        
+        <!-- Eepsite Header -->
+        <div class="text-center border-b border-[#444] pb-6 mb-8">
+           <h1 class="text-3xl font-bold text-[#ff3b3b] tracking-widest mb-2">BONKLIST2 - PUBLIC THREAT LEDGER</h1>
+           <p class="text-sm">Decentralized, self-propagating record of confirmed malicious actors.</p>
+           <div class="mt-4 inline-block bg-[#333] px-3 py-1 rounded text-[#00e0b3] text-sm">bonklist2-alpharelay.i2p</div>
+        </div>
+
+        <!-- Global Map -->
+        <div class="relative bg-[#111] border border-dashed border-[#444] h-[300px] mb-8 flex items-center justify-center overflow-hidden group">
+           <app-icon name="Globe" [size]="80" className="text-[#333] group-hover:text-[#444] transition-colors" />
+           <p class="absolute mt-24 text-[#555]">Global Threat Distribution Map</p>
+
+           <!-- Map Markers -->
+           <div class="absolute inset-0">
+             @for (sub of orchestrator.bannedList(); track sub.id) {
+                <div 
+                  class="absolute w-3 h-3 rounded-full transform -translate-x-1/2 -translate-y-1/2 cursor-pointer transition-transform hover:scale-150 z-10"
+                  [style.top]="getMapPosition(sub.location.lat, sub.location.lon).top"
+                  [style.left]="getMapPosition(sub.location.lat, sub.location.lon).left"
+                  [class]="sub.severity === 'Catastrophic' ? 'bg-red-500 shadow-[0_0_10px_red]' : 'bg-[#ffa657]'"
+                  (click)="sub.severity === 'Catastrophic' ? selectedBan.set(sub) : null"
+                >
+                  @if (sub.severity === 'Catastrophic') {
+                     <div class="absolute -top-4 left-1/2 transform -translate-x-1/2 text-xs animate-glow-red">🚨</div>
+                  }
+                </div>
+             }
+           </div>
+        </div>
+
+        <!-- Table -->
+        <div class="border border-[#444] text-sm">
+           <div class="grid grid-cols-4 bg-[#1a1a1a] text-[#ffa657] font-bold p-3 border-b border-[#444]">
+             <div>Actor IP</div>
+             <div>Location</div>
+             <div>Offense</div>
+             <div>Time Left</div>
+           </div>
+           @for (sub of orchestrator.bannedList(); track sub.id) {
+             <div 
+                class="grid grid-cols-4 p-3 border-b border-[#444] hover:bg-[#1a1a1a] transition"
+                [class.bg-[#381212]]="sub.severity === 'Catastrophic'"
+                [class.text-[#ff6b6b]]="sub.severity === 'Catastrophic'"
+                [class.font-bold]="sub.severity === 'Catastrophic'"
+                [class.cursor-pointer]="sub.severity === 'Catastrophic'"
+                (click)="sub.severity === 'Catastrophic' ? selectedBan.set(sub) : null"
+             >
+                <div class="flex items-center gap-2">
+                  {{ sub.ip }}
+                  @if(sub.deviceLocation) { <span class="bg-[#ff3b3b] text-white text-[10px] px-1 rounded">TRACKED</span> }
+                </div>
+                <div>{{ sub.location.city }}, {{ sub.location.country }}</div>
+                <div class="flex items-center gap-2">
+                   <app-icon name="AlertOctagon" [size]="14" /> {{ sub.attemptedAction }}
+                </div>
+                <div class="text-[#00e0b3] flex items-center gap-2 font-mono">
+                   <app-icon name="Clock" [size]="14" /> {{ formatTimeLeft(sub.banExpires) }}
+                </div>
+             </div>
+           }
+        </div>
+        
+        <!-- Permaban Overlay Modal -->
+        @if (selectedBan(); as ban) {
+          <div class="fixed inset-0 bg-black/95 z-50 flex flex-col items-center justify-center p-8 border-t-4 border-[#ff3b3b]">
+            <h2 class="text-[#ff3b3b] text-3xl font-bold mb-8 animate-pulse">⚠️ PERMANENT BAN RECORD ⚠️</h2>
+            
+            <div class="grid grid-cols-2 gap-8 max-w-4xl w-full bg-[#1a1a1a] p-6 border border-[#444] rounded-lg">
+               <!-- Info -->
+               <div class="space-y-4">
+                 <p><strong class="text-white">IP:</strong> {{ ban.ip }}</p>
+                 <p><strong class="text-white">Location:</strong> {{ ban.location.city }}</p>
+                 <p><strong class="text-white">Offense:</strong> {{ ban.attemptedAction }}</p>
+                 
+                 @if (ban.bonklistEntry) {
+                   <div class="border-t border-[#444] pt-4 mt-4">
+                     <p><strong class="text-[#00e0b3]">Forensic Match:</strong> {{ ban.bonklistEntry.scannedPerson }}</p>
+                     <p><strong class="text-[#00e0b3]">Device ID:</strong> {{ ban.bonklistEntry.deviceId }}</p>
+                     <p class="font-mono text-xs text-gray-400 break-all mt-1">
+                        SIG: [{{ ban.bonklistEntry.rfSignature.slice(0,5).join(',') }}...]
+                     </p>
+                   </div>
+                 }
+               </div>
+
+               <!-- Visual -->
+               <div class="flex flex-col items-center justify-center bg-black border border-[#333] rounded p-4">
+                  <app-icon name="Users" [size]="64" className="text-[#ff3b3b] mb-4" />
+                  <p class="text-xs text-gray-500 uppercase">Biometric Hash Preserved</p>
+                  <div class="w-full h-1 bg-[#333] mt-4 overflow-hidden">
+                     <div class="h-full bg-[#ff3b3b] animate-[width_2s_ease-in-out_infinite] w-1/2"></div>
+                  </div>
+               </div>
+            </div>
+
+            <button class="mt-8 bg-[#ff3b3b] text-white px-6 py-2 rounded font-bold hover:bg-red-700" (click)="selectedBan.set(null)">
+              Close Record
+            </button>
+          </div>
+        }
+
+      </div>
+    }
+  </div>
+}
